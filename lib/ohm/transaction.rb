@@ -74,7 +74,6 @@ module Ohm
 
     def initialize(*transactions)
       @phase = Hash.new { |h, k| h[k] = ::Set.new }
-      @store = Store.new
 
       transactions.each do |t|
         append(t)
@@ -110,25 +109,27 @@ module Ohm
     end
 
     def commit(db)
-      run(phase[:before])
+      phase[:before].each(&:call)
 
       loop do
+        store = Store.new
+
         if phase[:watch].any?
           db.watch(*phase[:watch])
         end
 
-        run(phase[:read])
+        run(phase[:read], store)
 
         break if db.multi do
-          run(phase[:write])
+          run(phase[:write], store)
         end
       end
 
-      run(phase[:after])
+      phase[:after].each(&:call)
     end
 
-    def run(procs)
-      procs.each { |p| p.call(@store) }
+    def run(procs, store)
+      procs.each { |p| p.call(store) }
     end
   end
 end
