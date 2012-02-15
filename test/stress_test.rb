@@ -32,7 +32,7 @@ test do
 
   assert_equal "4950", redis.get("total_amount")
 
-  puts "Executed in %.7f seconds" % t1
+  assert t1 > 0.5
 end
 
 LUA = <<-LUA
@@ -63,5 +63,5 @@ test do
 
   assert_equal "4950", redis.get("total_amount")
 
-  puts "Executed in %.7f seconds" % t1
+  assert t1 < 0.5
 end
