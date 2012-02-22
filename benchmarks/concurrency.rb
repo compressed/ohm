@@ -90,7 +90,7 @@ Benchmark.bmbm do |x|
     end
 
     def self.incrby(n)
-      mutex do
+      mutex(0.001) do
         val = key.get.to_i
 
         key.set(val + n)
