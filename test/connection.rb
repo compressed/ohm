@@ -68,5 +68,26 @@ test "model inherits Ohm.redis connection by default" do
   class C < Ohm::Model
   end
 
-  assert_equal C.conn.options, Ohm.conn.options
+  assert_equal C.conn.redis.object_id, Ohm.conn.redis.object_id
+end
+
+test "model inherits Ohm.redis when it changes options" do
+  Ohm.connect(:url => "redis://localhost:9876")
+  class C < Ohm::Model
+  end
+
+  Ohm.connect(:url => "redis://localhost:8765")
+
+  assert_equal C.conn.redis.object_id, Ohm.conn.redis.object_id
+end
+
+test "model takes over its db when it changes options" do
+  Ohm.connect(:url => "redis://localhost:9876")
+  class C < Ohm::Model
+  end
+
+  Ohm.connect(:url => "redis://localhost:8765")
+  C.connect(:url => "redis://localhost:7654")
+
+  assert C.conn.redis.object_id != Ohm.conn.redis.object_id
 end

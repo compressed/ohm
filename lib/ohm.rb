@@ -24,10 +24,12 @@ module Ohm
   class Connection
     attr_accessor :context
     attr_accessor :options
+    attr_accessor :default
 
-    def initialize(context = :main, options = {})
+    def initialize(context = :main, options = {}, default = nil)
       @context = context
       @options = options
+      @default = default
     end
 
     def reset!
@@ -40,6 +42,8 @@ module Ohm
     end
 
     def redis
+      return default.redis if options.empty?
+
       threaded[context] ||= Redis.connect(options)
     end
 
@@ -190,7 +194,7 @@ module Ohm
     include Scrivener::Validations
 
     def self.conn
-      @conn ||= Connection.new(name, Ohm.conn.options)
+      @conn ||= Connection.new(name, {}, Ohm.conn)
     end
 
     def self.connect(options)
