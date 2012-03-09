@@ -5,6 +5,7 @@ require "redis"
 require "securerandom"
 require "scrivener"
 require "ohm/transaction"
+require "connection_pool"
 
 module Ohm
 
