@@ -1,8 +1,8 @@
-# require "./lib/ohm/version"
+require "./lib/ohm/version"
 
 Gem::Specification.new do |s|
   s.name = "ohm"
-  # s.version = Ohm::VERSION
+  s.version = Ohm::VERSION
   s.summary = %{Object-hash mapping library for Redis.}
   s.description = %Q{Ohm is a library that allows to store an object in Redis, a persistent key-value database. It includes an extensible list of validations and has very good performance.}
   s.authors = ["Michel Martens", "Damian Janowski"]
