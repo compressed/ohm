@@ -76,6 +76,7 @@ module Ohm
     def initialize(context = :main, options = {})
       @context = context
       @options = options
+      @pool    = ConnectionPool.new(size:220,timeout:60) {Redis.new db:1}
     end
 
     def reset!
@@ -88,7 +89,7 @@ module Ohm
     end
 
     def redis
-      threaded[context] ||= Redis.connect(options)
+      threaded[context] ||= @pool
     end
 
     def threaded
@@ -472,8 +473,15 @@ module Ohm
     # To find out more about Nest, see:
     #   http://github.com/soveran/nest
     #
-    def self.key
-      @key ||= Nest.new(self.name, db)
+    # TODO: check this
+    def self.key(pconn = nil)
+      # TODO... see where it is nil
+      # debugger
+      if conn
+        @key ||= Nest.new(self.name, pconn)
+      else
+        @key ||= Nest.new(self.name, db)
+      end
     end
 
     # Retrieve a record by ID.
@@ -791,7 +799,7 @@ module Ohm
     #   http://github.com/soveran/nest
     #
     def key
-      model.key[id]
+      model.key(@pconn)[id]
     end
 
     # Initialize a model using a dictionary of attributes.
@@ -985,18 +993,21 @@ module Ohm
         t.watch(*_unique_keys)
         t.watch(key) if not new?
 
-        t.before do
+        t.before do |pconn|
+          @pconn = pconn
           _initialize_id if new?
         end
 
-        t.read do |store|
+        t.read do |store, pconn|
+          @pconn = pconn
           _verify_uniques
           store.existing = key.hgetall
           store.uniques  = _read_index_type(:uniques)
           store.indices  = _read_index_type(:indices)
         end
 
-        t.write do |store|
+        t.write do |store, pconn|
+          @pconn = pconn
           model.key[:all].sadd(id)
           _delete_uniques(store.existing)
           _delete_indices(store.existing)
@@ -1100,11 +1111,12 @@ module Ohm
       end
     end
 
-    def self.new_id
-      key[:id].incr
+    def self.new_id(conn)
+      key(conn)[:id].incr
     end
 
     attr_writer :id
+    attr_accessor :pconn
 
     def transaction
       txn = Transaction.new { |t| yield t }
@@ -1120,7 +1132,7 @@ module Ohm
     end
 
     def _initialize_id
-      @id = model.new_id.to_s
+      @id = model.new_id(@pconn).to_s
     end
 
     def _skip_empty(atts)
@@ -1148,7 +1160,7 @@ module Ohm
 
     def _detect_duplicate
       model.uniques.detect do |att|
-        id = model.key[:uniques][att].hget(send(att))
+        id = model.key(@pconn)[:uniques][att].hget(send(att))
         id && id != self.id.to_s
       end
     end
@@ -1163,13 +1175,13 @@ module Ohm
 
     def _save_uniques(uniques)
       uniques.each do |att, val|
-        model.key[:uniques][att].hset(val, id)
+        model.key(@pconn)[:uniques][att].hset(val, id)
       end
     end
 
     def _delete_uniques(atts)
       model.uniques.each do |att|
-        model.key[:uniques][att].hdel(atts[att.to_s])
+        model.key(@pconn)[:uniques][att].hdel(atts[att.to_s])
       end
     end
 
@@ -1178,7 +1190,7 @@ module Ohm
         val = atts[att.to_s]
 
         if val
-          model.key[:indices][att][val].srem(id)
+          model.key(@pconn)[:indices][att][val].srem(id)
         end
       end
     end

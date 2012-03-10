@@ -102,28 +102,31 @@ module Ohm
       phase[:after] << block
     end
 
-    def commit(db)
-      phase[:before].each(&:call)
+    def commit(pool)
+      # debugger
+      pool.with do |conn|
+        phase[:before].each {|p| p.call(conn)}
 
-      loop do
-        store = Store.new
+        loop do
+          store = Store.new
 
-        if phase[:watch].any?
-          db.watch(*phase[:watch])
+          if phase[:watch].any?
+            conn.watch(*phase[:watch])
+          end
+          # debugger
+          run(phase[:read], store, conn)
+
+          break if conn.multi do
+            run(phase[:write], store, conn)
+          end
         end
 
-        run(phase[:read], store)
-
-        break if db.multi do
-          run(phase[:write], store)
-        end
+        phase[:after].each(&:call)
       end
-
-      phase[:after].each(&:call)
     end
 
-    def run(procs, store)
-      procs.each { |p| p.call(store) }
+    def run(procs, store, conn)
+      procs.each { |p| p.call(store, conn) }
     end
   end
 end
