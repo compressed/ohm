@@ -76,7 +76,7 @@ module Ohm
     def initialize(context = :main, options = {})
       @context = context
       @options = options
-      @pool    = ConnectionPool.new(size:220,timeout:60) {Redis.new db:1}
+      @pool    = ConnectionPool.new(size:100,timeout:60) {Redis.new db:1}
     end
 
     def reset!
@@ -473,12 +473,14 @@ module Ohm
     # To find out more about Nest, see:
     #   http://github.com/soveran/nest
     #
-    # TODO: check this
     def self.key(pconn = nil)
-      # TODO... see where it is nil
-      # debugger
-      if conn
-        @key ||= Nest.new(self.name, pconn)
+      if pconn
+        if @key
+          @key.redis = pconn
+          @key
+        else
+          Nest.new(self.name, pconn)
+        end
       else
         @key ||= Nest.new(self.name, db)
       end
@@ -1008,7 +1010,7 @@ module Ohm
 
         t.write do |store, pconn|
           @pconn = pconn
-          model.key[:all].sadd(id)
+          model.key(@pconn)[:all].sadd(id)
           _delete_uniques(store.existing)
           _delete_indices(store.existing)
           _save

@@ -103,7 +103,6 @@ module Ohm
     end
 
     def commit(pool)
-      # debugger
       pool.with do |conn|
         phase[:before].each {|p| p.call(conn)}
 
@@ -113,14 +112,12 @@ module Ohm
           if phase[:watch].any?
             conn.watch(*phase[:watch])
           end
-          # debugger
           run(phase[:read], store, conn)
 
           break if conn.multi do
             run(phase[:write], store, conn)
           end
         end
-
         phase[:after].each(&:call)
       end
     end
